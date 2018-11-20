@@ -1,51 +1,37 @@
 import requests
 from bs4 import BeautifulSoup as BSoup
 import lxml
+import re
 
 #first set up the global variables
 BASE_URL = "https://www.wuxiaworld.com"
 
-class Story(Thread):
+def get_all_tags(url, element_class="", tag="a"):
+	#General purpose function for getting all tags from a page
+	r = requests.get(url)
+	soup = BSoup(r.text, "lxml")
+	return soup.find_all(tag, class_=element_class)
+
+class Story:
 
 	def __init__(self, url):
-		self.url = url
+		self.url = BASE_URL+url
 		self.chapters = self.get_chapters( )
 
 	def get_chapters(self):
-		r = requests.get(self.url)
+		all_links = get_all_tags(self.url, element_class="chapter-item", tag="li")
+		return [li.findChildren("a")[0]["href"] for li in all_links]
 		
-
 	def get_text(self):
-		pass
-
-def get_all_a_tags(url, a_class=""):
-	r = requests.get(url)
-	soup = BSoup(r.text, "lxml")
-	links = soup.find_all("a", class_=a_class)
-
-	for link in links:
-		yield {
-			"url":url+link,
-			"text":link.text
-		}
-
-def stories( ):
-	url    = BASE_URL+"/tag/completed"
-	r 	   = requests.get(url)
-	soup   = BSoup(r.text, "lxml")
-	titles = soup.find_all("a", class_="text-white")
-	
-	for title in titles:
-		yield {"url":BASE_URL+title["href"], "name":title.text}
-
+		return ''.join([get_all_tags(BASE_URL+i, "fr-view", "div")[0].text 
+					   for i in self.chapters])
 
 def main( ):
-	
-	for story in stories( ):
-		s = Story(story["url"])
-
-		with open(story["title"]+".txt", "w") as f:
-			f.write(s.get_text( ))
+	stories = get_all_tags(BASE_URL+"/tag/completed", "text-white")
+	for story in stories:
+		s = Story(story["href"])
+		with open(story.text.strip( )+".txt", "w") as f:
+			f.write(str(s.get_text( )))
 
 if __name__=='__main__':
 	main( )
